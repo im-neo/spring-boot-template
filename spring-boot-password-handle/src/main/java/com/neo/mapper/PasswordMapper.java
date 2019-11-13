@@ -4,6 +4,7 @@ import com.neo.model.entity.Password;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Set;
 
 public interface PasswordMapper {
 
@@ -23,4 +24,8 @@ public interface PasswordMapper {
     Integer queryLastMaxId(@Param("lastMaxId") Integer lastMaxId, @Param("limit") Integer limit);
     
     Integer queryMaxId();
+    
+    int checkPlaintextExist(@Param("plaintext") String plaintext);
+    
+    Set<String> queryPlaintexts(@Param("plaintexts") Set<String> plaintexts);
 }

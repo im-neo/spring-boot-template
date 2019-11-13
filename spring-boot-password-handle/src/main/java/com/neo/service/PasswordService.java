@@ -1,4 +1,4 @@
-package com.neo;
+package com.neo.service;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.hash.BloomFilter;
@@ -16,9 +16,10 @@ import org.springframework.util.DigestUtils;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -43,6 +44,7 @@ public class PasswordService implements InitializingBean {
 
 
     public static final int TEMP_PASSWORD_CAPACITY = 500;
+    private Set<String> WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET = new HashSet<>(TEMP_PASSWORD_CAPACITY);
     private Set<String> TEMP_PASSWORD_PLAINTEXT_SET = new HashSet<>(TEMP_PASSWORD_CAPACITY);
     private List<Password> TEMP_PASSWORD_LIST = new ArrayList<>(TEMP_PASSWORD_CAPACITY);
 
@@ -50,13 +52,68 @@ public class PasswordService implements InitializingBean {
     @Autowired
     private PasswordMapper passwordMapper;
 
-    public Password getByCiphertext(String ciphertext) {
-        return passwordMapper.getByCiphertext(ciphertext);
+
+    public int loadFromFile(String filePath) {
+        File file = new File(filePath);
+        int count = 0;
+        try {
+            List<String> readLines = FileUtils.readLines(file, Charset.defaultCharset());
+            for (String readLine : readLines) {
+                count += savePasswordToWaitConfirm(readLine);
+            }
+            count += syncAndFlushCache(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return count;
     }
 
-    public Password getByPlaintext(String plaintext) {
-        return passwordMapper.getByPlaintext(plaintext);
+
+    /**
+     * 加入缓存
+     *
+     * @Author: Neo
+     * @Date: 2019/11/13 16:59
+     * @Version: 1.0
+     */
+    public int savePasswordToWaitConfirm(String pwd) {
+        if (checkMightExist(pwd)) {
+            return 0;
+        }
+        // 可能存在则加入待确认
+        WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.add(pwd);
+        if (CollectionUtils.size(WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET) < TEMP_PASSWORD_CAPACITY) {
+            return 0;
+        }
+
+        return syncAndFlushCache(false);
     }
+
+
+    /**
+     * 同步并且刷新缓存
+     *
+     * @param focus 是否强制刷新
+     * @Author: Neo
+     * @Date: 2019/11/13 22:19
+     * @Version: 1.0
+     */
+    public int syncAndFlushCache(boolean focus) {
+        Set<String> confirmedPlaintext = batchCheckExist();
+        if (CollectionUtils.isEmpty(confirmedPlaintext)) {
+            return 0;
+        }
+
+        int count = 0;
+        for (String plaintext : confirmedPlaintext) {
+            count += savePasswordToCache(plaintext, focus);
+        }
+
+        WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.clear();
+        return count;
+    }
+
 
     /**
      * 保存密码，如果已存在则不保存
@@ -66,7 +123,7 @@ public class PasswordService implements InitializingBean {
      * @Version: 1.0
      */
     public int savePassword(String pwd) {
-        if (checkExist(pwd)) {
+        if (checkMightExist(pwd) && checkPlaintextExist(pwd)) {
             System.out.println("重复：" + pwd);
             return 0;
         }
@@ -78,15 +135,16 @@ public class PasswordService implements InitializingBean {
 
 
     /**
-     * 加入缓存
+     * 写入缓存
      *
+     * @param pwd   当前密码值
+     * @param focus 是否强制将当前缓存入库
      * @Author: Neo
-     * @Date: 2019/11/13 16:59
+     * @Date: 2019/11/13 22:16
      * @Version: 1.0
      */
-    public int savePasswordToCache(String pwd) {
-        if (checkExist(pwd)) {
-            System.out.println("重复：" + pwd);
+    public int savePasswordToCache(String pwd, boolean focus) {
+        if (StringUtils.isBlank(pwd)) {
             return 0;
         }
         PLAINTEXT_PASSWORD_BLOOM_FILTER.put(pwd);
@@ -94,15 +152,28 @@ public class PasswordService implements InitializingBean {
             TEMP_PASSWORD_LIST.add(builderPassword(pwd));
         }
 
-        if (CollectionUtils.size(TEMP_PASSWORD_PLAINTEXT_SET) > TEMP_PASSWORD_CAPACITY) {
-            int count = passwordMapper.batchSavePassword(TEMP_PASSWORD_LIST);
-            TEMP_PASSWORD_LIST.clear();
-            TEMP_PASSWORD_PLAINTEXT_SET.clear();
-
-            return count;
+        if (CollectionUtils.size(TEMP_PASSWORD_PLAINTEXT_SET) < TEMP_PASSWORD_CAPACITY || focus) {
+            return 0;
         }
-        return 0;
+        int count = passwordMapper.batchSavePassword(TEMP_PASSWORD_LIST);
+        TEMP_PASSWORD_LIST.clear();
+        TEMP_PASSWORD_PLAINTEXT_SET.clear();
+
+        return count;
     }
+
+
+    public Set<String> batchCheckExist() {
+        Set<String> existPlaintexts = queryPlaintexts(WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET);
+        Iterator<String> iterator = WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.iterator();
+        while (iterator.hasNext()) {
+            if (existPlaintexts.contains(iterator.next())) {
+                iterator.remove();
+            }
+        }
+        return WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET;
+    }
+
 
     /**
      * 批量保存
@@ -112,6 +183,9 @@ public class PasswordService implements InitializingBean {
      * @Version: 1.0
      */
     private int batchSavePassword() {
+        if (CollectionUtils.isEmpty(TEMP_PASSWORD_LIST)) {
+            return 0;
+        }
         int count = passwordMapper.batchSavePassword(TEMP_PASSWORD_LIST);
         TEMP_PASSWORD_LIST.clear();
         TEMP_PASSWORD_PLAINTEXT_SET.clear();
@@ -129,44 +203,24 @@ public class PasswordService implements InitializingBean {
     }
 
     /**
-     * 判断密码是否村子
+     * 判断密码是否可能存在
      *
      * @Author: Neo
      * @Date: 2019/11/13 15:36
      * @Version: 1.0
      */
-    public boolean checkExist(String pwd) {
+    public boolean checkMightExist(String pwd) {
         if (StringUtils.isBlank(pwd)) {
             return true;
         }
-        boolean mightContain = PLAINTEXT_PASSWORD_BLOOM_FILTER.mightContain(pwd);
-        if (mightContain) {
-            if (TEMP_PASSWORD_PLAINTEXT_SET.contains(pwd)) {
-                return true;
-            }
-            Password p = getByPlaintext(pwd);
-            // 判断是否存在
-            if (!Objects.isNull(p)) {
-                return true;
-            }
+        return PLAINTEXT_PASSWORD_BLOOM_FILTER.mightContain(pwd);
+    }
+
+    public Set<String> queryPlaintexts(Set<String> plaintexts) {
+        if (CollectionUtils.isEmpty(plaintexts)) {
+            return Collections.EMPTY_SET;
         }
-        return false;
-    }
-
-    public List<Password> queryForPage(Integer lastMaxId, Integer limit) {
-        return passwordMapper.queryForPage(lastMaxId, limit);
-    }
-
-    public List<String> queryPlaintextForPage(Integer lastMaxId, Integer limit) {
-        return passwordMapper.queryPlaintextForPage(lastMaxId, limit);
-    }
-
-    public Integer queryLastMaxId(Integer lastMaxId, Integer limit) {
-        return passwordMapper.queryLastMaxId(lastMaxId, limit);
-    }
-
-    public Integer queryMaxId() {
-        return passwordMapper.queryMaxId();
+        return passwordMapper.queryPlaintexts(plaintexts);
     }
 
 
@@ -203,19 +257,32 @@ public class PasswordService implements InitializingBean {
         System.out.println("初始化明文密码布隆过滤器耗时：" + stopwatch.elapsed(TimeUnit.SECONDS));
     }
 
-    public int loadFromFile(String filePath) {
-        File file = new File(filePath);
-        int count = 0;
-        try {
-            List<String> readLines = FileUtils.readLines(file, Charset.defaultCharset());
-            for (String readLine : readLines) {
-                count += savePasswordToCache(readLine);
-            }
-            count += batchSavePassword();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        return count;
+    public List<Password> queryForPage(Integer lastMaxId, Integer limit) {
+        return passwordMapper.queryForPage(lastMaxId, limit);
+    }
+
+    public List<String> queryPlaintextForPage(Integer lastMaxId, Integer limit) {
+        return passwordMapper.queryPlaintextForPage(lastMaxId, limit);
+    }
+
+    public Integer queryLastMaxId(Integer lastMaxId, Integer limit) {
+        return passwordMapper.queryLastMaxId(lastMaxId, limit);
+    }
+
+    public Integer queryMaxId() {
+        return passwordMapper.queryMaxId();
+    }
+
+    public Password getByCiphertext(String ciphertext) {
+        return passwordMapper.getByCiphertext(ciphertext);
+    }
+
+    public Password getByPlaintext(String plaintext) {
+        return passwordMapper.getByPlaintext(plaintext);
+    }
+
+    public boolean checkPlaintextExist(String plaintext) {
+        return passwordMapper.checkPlaintextExist(plaintext) > 0;
     }
 }

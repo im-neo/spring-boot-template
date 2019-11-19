@@ -58,8 +58,16 @@ public class PasswordService implements InitializingBean {
         int count = 0;
         try {
             List<String> readLines = FileUtils.readLines(file, Charset.defaultCharset());
+            Set<String> temp = new HashSet<>(10240);
+            int index = 0;
             for (String readLine : readLines) {
+                index++;
+                temp.add(readLine);
                 count += savePasswordToWaitConfirm(readLine);
+                if(!WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.contains(readLine) && index%TEMP_PASSWORD_CAPACITY!=0){
+                    System.out.println(readLine);
+                }
+                
             }
             count += syncAndFlushCache(true);
         } catch (Exception e) {
@@ -107,9 +115,13 @@ public class PasswordService implements InitializingBean {
 
         int count = 0;
         for (String plaintext : confirmedPlaintext) {
-            count += savePasswordToCache(plaintext, focus);
+            count += savePasswordToCache(plaintext);
         }
 
+        if(focus){
+            count += batchSavePassword();
+        }
+        
         WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.clear();
         return count;
     }
@@ -138,12 +150,11 @@ public class PasswordService implements InitializingBean {
      * 写入缓存
      *
      * @param pwd   当前密码值
-     * @param focus 是否强制将当前缓存入库
      * @Author: Neo
      * @Date: 2019/11/13 22:16
      * @Version: 1.0
      */
-    public int savePasswordToCache(String pwd, boolean focus) {
+    public int savePasswordToCache(String pwd) {
         if (StringUtils.isBlank(pwd)) {
             return 0;
         }
@@ -152,14 +163,10 @@ public class PasswordService implements InitializingBean {
             TEMP_PASSWORD_LIST.add(builderPassword(pwd));
         }
 
-        if (CollectionUtils.size(TEMP_PASSWORD_PLAINTEXT_SET) < TEMP_PASSWORD_CAPACITY || focus) {
+        if (CollectionUtils.size(TEMP_PASSWORD_PLAINTEXT_SET) < TEMP_PASSWORD_CAPACITY) {
             return 0;
         }
-        int count = passwordMapper.batchSavePassword(TEMP_PASSWORD_LIST);
-        TEMP_PASSWORD_LIST.clear();
-        TEMP_PASSWORD_PLAINTEXT_SET.clear();
-
-        return count;
+        return batchSavePassword();
     }
 
 

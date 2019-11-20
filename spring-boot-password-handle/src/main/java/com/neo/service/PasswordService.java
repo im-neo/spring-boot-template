@@ -5,6 +5,7 @@ import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnel;
 import com.neo.mapper.PasswordMapper;
 import com.neo.model.entity.Password;
+import com.neo.util.PasswordCracking;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -20,6 +21,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -39,6 +41,8 @@ public class PasswordService implements InitializingBean {
      */
     private static final double FPP = 0.5;
     private static BloomFilter<String> PLAINTEXT_PASSWORD_BLOOM_FILTER = BloomFilter.create((Funnel<String>) (string, primitiveSink) -> primitiveSink.putString(string, Charset.defaultCharset()), SIZE, FPP);
+    private static boolean PLAINTEXT_PASSWORD_BLOOM_FILTER_INITIALIZED = false;
+
 
     private static ThreadPoolExecutor threadPool = new ThreadPoolExecutor(3, 5, 60, TimeUnit.SECONDS, new LinkedBlockingQueue());
 
@@ -57,17 +61,11 @@ public class PasswordService implements InitializingBean {
         File file = new File(filePath);
         int count = 0;
         try {
+            Stopwatch stopwatch = Stopwatch.createStarted();
             List<String> readLines = FileUtils.readLines(file, Charset.defaultCharset());
-            Set<String> temp = new HashSet<>(10240);
-            int index = 0;
+            System.out.println("读取文件耗时/ms：" + stopwatch.elapsed(TimeUnit.MILLISECONDS));
             for (String readLine : readLines) {
-                index++;
-                temp.add(readLine);
                 count += savePasswordToWaitConfirm(readLine);
-                if(!WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.contains(readLine) && index%TEMP_PASSWORD_CAPACITY!=0){
-                    System.out.println(readLine);
-                }
-                
             }
             count += syncAndFlushCache(true);
         } catch (Exception e) {
@@ -87,10 +85,12 @@ public class PasswordService implements InitializingBean {
      */
     public int savePasswordToWaitConfirm(String pwd) {
         if (checkMightExist(pwd)) {
-            return 0;
+            // 可能存在则加入待确认
+            WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.add(pwd);
+        } else {
+            return savePasswordToCache(pwd);
         }
-        // 可能存在则加入待确认
-        WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.add(pwd);
+
         if (CollectionUtils.size(WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET) < TEMP_PASSWORD_CAPACITY) {
             return 0;
         }
@@ -108,7 +108,9 @@ public class PasswordService implements InitializingBean {
      * @Version: 1.0
      */
     public int syncAndFlushCache(boolean focus) {
+        Stopwatch stopwatch = Stopwatch.createStarted();
         Set<String> confirmedPlaintext = batchCheckExist();
+        System.out.println("批量重复校验耗时/ms：" + stopwatch.elapsed(TimeUnit.MILLISECONDS) );
         if (CollectionUtils.isEmpty(confirmedPlaintext)) {
             return 0;
         }
@@ -118,10 +120,10 @@ public class PasswordService implements InitializingBean {
             count += savePasswordToCache(plaintext);
         }
 
-        if(focus){
+        if (focus) {
             count += batchSavePassword();
         }
-        
+
         WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.clear();
         return count;
     }
@@ -149,7 +151,7 @@ public class PasswordService implements InitializingBean {
     /**
      * 写入缓存
      *
-     * @param pwd   当前密码值
+     * @param pwd 当前密码值
      * @Author: Neo
      * @Date: 2019/11/13 22:16
      * @Version: 1.0
@@ -174,7 +176,8 @@ public class PasswordService implements InitializingBean {
         Set<String> existPlaintexts = queryPlaintexts(WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET);
         Iterator<String> iterator = WAIT_CONFIRM_PASSWORD_PLAINTEXT_SET.iterator();
         while (iterator.hasNext()) {
-            if (existPlaintexts.contains(iterator.next())) {
+            String pwd = iterator.next();
+            if (existPlaintexts.contains(pwd) || TEMP_PASSWORD_PLAINTEXT_SET.contains(pwd)) {
                 iterator.remove();
             }
         }
@@ -220,6 +223,9 @@ public class PasswordService implements InitializingBean {
         if (StringUtils.isBlank(pwd)) {
             return true;
         }
+        if (!PLAINTEXT_PASSWORD_BLOOM_FILTER_INITIALIZED) {
+            return true;
+        }
         return PLAINTEXT_PASSWORD_BLOOM_FILTER.mightContain(pwd);
     }
 
@@ -234,6 +240,7 @@ public class PasswordService implements InitializingBean {
     @Override
     public void afterPropertiesSet() throws Exception {
         threadPool.execute(() -> initPlaintextPasswordBloomFilter());
+        // initPlaintextPasswordBloomFilter();
     }
 
     /**
@@ -261,9 +268,46 @@ public class PasswordService implements InitializingBean {
             }
             System.out.println("初始化明文密码布隆过滤器...");
         } while (CollectionUtils.size(passwordList) >= limit);
-        System.out.println("初始化明文密码布隆过滤器耗时：" + stopwatch.elapsed(TimeUnit.SECONDS));
+        PLAINTEXT_PASSWORD_BLOOM_FILTER_INITIALIZED = true;
+        System.out.println("初始化明文密码布隆过滤器耗时/s：" + stopwatch.elapsed(TimeUnit.SECONDS));
     }
 
+    /**
+     * 通过字典破解
+     *
+     * @Author: Neo
+     * @Date: 2019/11/20 17:31
+     * @Version: 1.0
+     */
+    public String crackPassword(String ciphertext){
+        if(StringUtils.isBlank(ciphertext)){
+            return StringUtils.EMPTY;
+        }
+        Password password = passwordMapper.getByCiphertext(ciphertext);
+        if(!Objects.isNull(password)){
+            return password.getPlaintext();
+        }
+        return StringUtils.EMPTY;
+    }
+    
+    /**
+     * 先通过字典破解，再暴力破解
+     *
+     * @Author: Neo
+     * @Date: 2019/11/20 17:31
+     * @Version: 1.0
+     */
+    public String forceCrackPassword(String ciphertext){
+        String plaintext = crackPassword(ciphertext);
+        if(StringUtils.isNotBlank(plaintext)){
+            return plaintext;
+        }
+        PasswordCracking passwordCracking = new PasswordCracking(6, 9, ciphertext);
+        try {
+            passwordCracking.crack();
+        } catch (RuntimeException e) {}
+        return passwordCracking.getPlaintext();
+    }
 
     public List<Password> queryForPage(Integer lastMaxId, Integer limit) {
         return passwordMapper.queryForPage(lastMaxId, limit);

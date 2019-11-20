@@ -2,7 +2,7 @@ package com.neo.test;
 
 import com.google.common.base.Stopwatch;
 import com.neo.PasswordHandleApplication;
-import com.neo.PasswordService;
+import com.neo.service.PasswordService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,5 +25,13 @@ public class TestApp {
         Stopwatch stopwatch = Stopwatch.createStarted();
         int count = passwordService.loadFromFile(filePath);
         System.out.println("成功导入：" + count + "，耗时：" + stopwatch.elapsed(TimeUnit.SECONDS));
+    }
+    
+    @Test
+    public void test02(){
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        String plaintext = passwordService.forceCrackPassword("e8233f5c2d747116b6395258ce7762f4");
+        
+        System.out.println("字典破解："+plaintext+"，耗时："+stopwatch.elapsed());
     }
 }

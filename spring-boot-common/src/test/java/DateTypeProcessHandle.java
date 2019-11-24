@@ -1,5 +1,6 @@
 import com.alibaba.fastjson.util.TypeUtils;
 import com.neo.util.modifyinfo.TypeProcessHandle;
+import org.apache.commons.lang3.StringUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -26,12 +27,11 @@ public class DateTypeProcessHandle implements TypeProcessHandle<Date> {
         if ((Objects.isNull(o1) && !Objects.isNull(o2)) || (!Objects.isNull(o1) && Objects.isNull(o2))) {
             return true;
         }
-        Date n = TypeUtils.castToDate(o1);
-        Date o = TypeUtils.castToDate(o2);
-        n = clearTimeTail(n);
-        o = clearTimeTail(o);
+        
+        String n = sdf.format(o1);
+        String o = sdf.format(o2);
 
-        return n.compareTo(o) != 0;
+        return !StringUtils.equals(n , o);
     }
 
     @Override

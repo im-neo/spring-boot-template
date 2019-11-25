@@ -27,7 +27,19 @@ import java.util.Set;
  * 
  * 处理器优先级：BuilderModifyInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderModifyInfoHandle.Builder#registerProcessHandle() > 默认
  * 属性名称优先级：BuilderModifyInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderModifyInfoHandle.Builder#configGlobalNameAnnotation()
+ * 
+ * 需依赖：
+ *         <dependency>
+ *             <groupId>com.google.guava</groupId>
+ *             <artifactId>guava</artifactId>
+ *             <version>28.0-jre</version>
+ *         </dependency>
  *
+ *         <dependency>
+ *             <groupId>com.alibaba</groupId>
+ *             <artifactId>fastjson</artifactId>
+ *             <version>1.2.62</version>
+ *         </dependency>
  * 
  * @Author: Neo
  * @Date: 2019/11/22 22:49

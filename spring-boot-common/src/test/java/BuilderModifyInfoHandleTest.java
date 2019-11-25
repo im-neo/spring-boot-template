@@ -29,6 +29,8 @@ public class BuilderModifyInfoHandleTest {
         String[] ignoreFields = {"string", "integer"};
 
         JSONArray array = BuilderModifyInfoHandle.Builder(oldObject, newObject)
+                // .compareFields(compareFields)
+                // .ignoreCompareFields(ignoreFields)
                 .fieldTitleKey("标题")
                 .putFieldTitleMapping("string", "这是字符串")
                 .registerProcessHandle(new DateTypeProcessHandle())

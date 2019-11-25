@@ -25,6 +25,7 @@ public class TestBean {
     private Date date;
 
     @JSONField(name = "数字")
+    @Property(isIgnore = true)
     private BigDecimal bigDecimal;
 
     @JSONField(name = "布尔")

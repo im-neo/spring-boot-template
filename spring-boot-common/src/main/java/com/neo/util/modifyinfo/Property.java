@@ -39,4 +39,9 @@ public @interface Property {
      * 单独使用无效，需配合{@link #nameAnnotationClass}
      */
     String nameAnnotationClassField() default "";
+
+    /**
+     * 是否忽略改属性
+     */
+    boolean isIgnore() default false;
 }

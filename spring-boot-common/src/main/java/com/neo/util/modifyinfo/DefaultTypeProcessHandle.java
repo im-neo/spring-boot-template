@@ -6,7 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * 默认类型处理器
- * 
+ *
  * @Author: Neo
  * @Date: 2019/11/24 17:40
  * @Version: 1.0
@@ -25,7 +25,7 @@ public class DefaultTypeProcessHandle implements TypeProcessHandle<Object> {
     }
 
     @Override
-    public Object format(Object o) {
-        return TypeUtils.castToString(o);
+    public Object format(Class<?> clazz, String fieldName, Object value) {
+        return TypeUtils.castToString(value);
     }
 }

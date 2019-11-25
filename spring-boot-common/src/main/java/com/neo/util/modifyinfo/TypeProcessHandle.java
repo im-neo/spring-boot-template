@@ -34,5 +34,5 @@ public interface TypeProcessHandle<T> {
      * @Date: 2019/11/23 0:13
      * @Version: 1.0
      */
-    Object format(Object o);
+    Object format(Class<?> clazz , String fieldName , Object value);
 }

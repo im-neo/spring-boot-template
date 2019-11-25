@@ -17,14 +17,7 @@ public class BigDecimalTypeProcessHandle implements TypeProcessHandle<BigDecimal
     public boolean isDifferent(Object o1, Object o2) {
         BigDecimal d1 = TypeUtils.castToBigDecimal(o1);
         BigDecimal d2 = TypeUtils.castToBigDecimal(o2);
-        if (Objects.isNull(d1) && Objects.isNull(d2)) {
-            return false;
-        }
-
-        if ((Objects.isNull(d1) && !Objects.isNull(d2) || (!Objects.isNull(d1) && Objects.isNull(d2)))) {
-            return true;
-        }
-        return d1.compareTo(d2) != 0;
+        return Objects.isNull(d1) ? Objects.isNull(d2) : d1.compareTo(d2) != 0;
     }
 
     @Override
@@ -33,7 +26,7 @@ public class BigDecimalTypeProcessHandle implements TypeProcessHandle<BigDecimal
     }
 
     @Override
-    public Object format(Object o) {
-        return o;
+    public Object format(Class<?> clazz, String fieldName, Object value) {
+        return value;
     }
 }

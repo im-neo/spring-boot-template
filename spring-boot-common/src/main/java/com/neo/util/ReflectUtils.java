@@ -59,8 +59,9 @@ public class ReflectUtils {
      */
     public static Object getValueByFieldName(Object obj, String fieldName)
             throws IllegalAccessException {
-        if (Map.class.isAssignableFrom(obj.getClass())) {// 是map
-            Map<?, ?> map = (Map<?, ?>) obj;
+        // 是map
+        if (Map.class.isAssignableFrom(obj.getClass())) {
+            Map map = (Map) obj;
             return map.get(fieldName);
         }
         Field field = getFieldByFieldName(obj, fieldName);
@@ -101,7 +102,6 @@ public class ReflectUtils {
     /***
      * 获取某一个实体的数据类型
      *
-     * @Description: TODO
      * @param clazz
      *            实体字节码文件
      * @param fieldName

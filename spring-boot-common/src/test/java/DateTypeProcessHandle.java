@@ -1,5 +1,3 @@
-package com.neo.util.modifyinfo;
-
 import com.alibaba.fastjson.util.TypeUtils;
 import com.neo.util.modifyinfo.TypeProcessHandle;
 

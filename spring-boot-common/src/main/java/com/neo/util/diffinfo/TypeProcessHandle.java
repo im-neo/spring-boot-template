@@ -1,7 +1,7 @@
-package com.neo.util.modifyinfo;
+package com.neo.util.diffinfo;
 
 /**
- * 
+ * 类型处理器
  *
  * @Author: Neo
  * @Date: 2019/11/22 23:13
@@ -29,6 +29,9 @@ public interface TypeProcessHandle<T> {
     
     /**
      * 格式化
+     * @param clazz 比较的对象
+     * @param fieldName 属性
+     * @param value 属性值
      *
      * @Author: Neo
      * @Date: 2019/11/23 0:13

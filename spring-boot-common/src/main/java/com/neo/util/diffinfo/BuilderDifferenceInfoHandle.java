@@ -1,4 +1,4 @@
-package com.neo.util.modifyinfo;
+package com.neo.util.diffinfo;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -25,8 +25,8 @@ import java.util.Set;
 /**
  * 组装修改信息工具类
  * 
- * 处理器优先级：BuilderModifyInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderModifyInfoHandle.Builder#registerProcessHandle() > 默认
- * 属性名称优先级：BuilderModifyInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderModifyInfoHandle.Builder#configGlobalNameAnnotation()
+ * 处理器优先级：BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderDifferenceInfoHandle.Builder#registerProcessHandle() > 默认
+ * 属性名称优先级：BuilderDifferenceInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderDifferenceInfoHandle.Builder#configGlobalNameAnnotation()
  * 
  * 需依赖：
  *         <dependency>
@@ -45,9 +45,9 @@ import java.util.Set;
  * @Date: 2019/11/22 22:49
  * @Version: 1.0
  */
-public class BuilderModifyInfoHandle {
+public class BuilderDifferenceInfoHandle {
 
-    private BuilderModifyInfoHandle(){}
+    private BuilderDifferenceInfoHandle(){}
     
     private static final String[] EMPTY_ARRAY = new String[0];
     private static TypeProcessHandle DATE_TYPE_PROCESS_HANDLE = new DateTypeProcessHandle();
@@ -87,7 +87,7 @@ public class BuilderModifyInfoHandle {
     /** 全局名称标注注解类属性，单独使用无效，需配合 globalNameAnnotationClass 一起使用 */
     private String globalNameAnnotationClassField;
 
-    private BuilderModifyInfoHandle(Builder builder) {
+    private BuilderDifferenceInfoHandle(Builder builder) {
         setOldObject(builder.oldObject);
         setNewObject(builder.newObject);
         setCompareFields(builder.compareFields);
@@ -97,6 +97,7 @@ public class BuilderModifyInfoHandle {
         setNewValueKey(builder.newValueKey);
         setFieldNameKey(builder.fieldNameKey);
         setFieldTitleKey(builder.fieldTitleKey);
+        setBuilderNullValue(builder.isBuilderNullValue);
         setFieldTitleMapping(builder.fieldTitleMapping);
         setIgnoreCompareFields(builder.ignoreCompareFields);
         setGlobalNameAnnotationClass(builder.globalNameAnnotationClass);
@@ -111,7 +112,7 @@ public class BuilderModifyInfoHandle {
      * @Date: 2019/11/22 21:59
      * @Version: 1.0
      */
-    public JSONArray builderModifyInfo(Object oldObject, Object newObject, String... compareFields) {
+    public JSONArray builderDifferenceInfo(Object oldObject, Object newObject, String... compareFields) {
         if (Objects.isNull(newObject) || Objects.isNull(oldObject)) {
             throw new RuntimeException("参数异常");
         }
@@ -125,7 +126,7 @@ public class BuilderModifyInfoHandle {
                 if (!isDifferent(oldObject, newObject, field, newValue, oldValue)) {
                     continue;
                 }
-                jsonArray.add(builderModifyInfo(oldObject, newObject, field, newValue, oldValue));
+                jsonArray.add(builderDifferenceInfo(oldObject, newObject, field, newValue, oldValue));
             }
         } catch (IllegalAccessException e) {
             e.printStackTrace();
@@ -145,7 +146,7 @@ public class BuilderModifyInfoHandle {
      * @Date: 2019/11/22 21:57
      * @Version: 1.0
      */
-    public JSONObject builderModifyInfo(Object oldObject, Object newObject, String fieldName, Object oldValue, Object newValue)
+    public JSONObject builderDifferenceInfo(Object oldObject, Object newObject, String fieldName, Object oldValue, Object newValue)
             throws IllegalAccessException, InstantiationException, NoSuchFieldException {
         String title = getFieldTitle(newObject, fieldName);
         if (StringUtils.isBlank(title)) {
@@ -177,7 +178,7 @@ public class BuilderModifyInfoHandle {
 
     /**
      * 得到类型处理器
-     * 处理器优先级：BuilderModifyInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderModifyInfoHandle.Builder#registerProcessHandle() > 默认
+     * 处理器优先级：BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderDifferenceInfoHandle.Builder#registerProcessHandle() > 默认
      * @Author: Neo
      * @Date: 2019/11/24 17:41
      * @Version: 1.0
@@ -191,7 +192,7 @@ public class BuilderModifyInfoHandle {
             return DEFAULT_TYPE_PROCESS_HANDLE;
         }
 
-        // 1.BuilderModifyInfoHandle.Builder#putFieldNameProcessHandleMapping()
+        // 1.BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping()
         TypeProcessHandle handle;
         if (!Objects.isNull(this.fieldNameProcessHandleMap) && !this.fieldNameProcessHandleMap.isEmpty()) {
             handle = this.fieldNameProcessHandleMap.get(fieldName);
@@ -212,7 +213,7 @@ public class BuilderModifyInfoHandle {
         }
         Class<?> targetType = MoreObjects.firstNonNull(newObjectFieldClass, oldObjectFieldClass);
 
-        // 3.BuilderModifyInfoHandle.Builder#registerProcessHandle()
+        // 3.BuilderDifferenceInfoHandle.Builder#registerProcessHandle()
         if (!Objects.isNull(this.typeProcessHandleMap) && !this.typeProcessHandleMap.isEmpty()) {
             handle = this.typeProcessHandleMap.get(targetType);
             if (!Objects.isNull(handle)) {
@@ -291,7 +292,7 @@ public class BuilderModifyInfoHandle {
     /**
      * 得到属性标题
      * <p>
-     * 属性名称优先级：BuilderModifyInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderModifyInfoHandle.Builder#configGlobalNameAnnotation()
+     * 属性名称优先级：BuilderDifferenceInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderDifferenceInfoHandle.Builder#configGlobalNameAnnotation()
      *
      * @Author: Neo
      * @Date: 2019/11/22 22:30
@@ -302,7 +303,7 @@ public class BuilderModifyInfoHandle {
             return null;
         }
         String title = StringUtils.EMPTY;
-        // 1.BuilderModifyInfoHandle.Builder#putFieldTitleMapping()
+        // 1.BuilderDifferenceInfoHandle.Builder#putFieldTitleMapping()
         if (!Objects.isNull(this.fieldTitleMapping) && !this.fieldTitleMapping.isEmpty()) {
             title = this.fieldTitleMapping.get(fieldName);
         }
@@ -339,7 +340,7 @@ public class BuilderModifyInfoHandle {
             }
         }
 
-        // 4.BuilderModifyInfoHandle.Builder#configGlobalNameAnnotation()
+        // 4.BuilderDifferenceInfoHandle.Builder#configGlobalNameAnnotation()
         if (!Objects.isNull(this.globalNameAnnotationClass)
                 && StringUtils.isNotBlank(this.globalNameAnnotationClassField)
                 && field.isAnnotationPresent(this.globalNameAnnotationClass)) {
@@ -700,12 +701,12 @@ public class BuilderModifyInfoHandle {
          * @Version: 1.0
          */
         public JSONArray buildInfo() {
-            BuilderModifyInfoHandle handle = new BuilderModifyInfoHandle(this);
+            BuilderDifferenceInfoHandle handle = new BuilderDifferenceInfoHandle(this);
             String[] compareFields = mergeCompareFields(handle);
             if (ArrayUtils.isEmpty(compareFields)) {
                 throw new RuntimeException("没有需要比较的字段");
             }
-            return handle.builderModifyInfo(handle.getNewObject(), handle.getOldObject(), compareFields);
+            return handle.builderDifferenceInfo(handle.getNewObject(), handle.getOldObject(), compareFields);
         }
 
         /**
@@ -715,8 +716,8 @@ public class BuilderModifyInfoHandle {
          * @Date: 2019/11/25 11:29
          * @Version: 1.0
          */
-        public BuilderModifyInfoHandle buildObject() {
-            return new BuilderModifyInfoHandle(this);
+        public BuilderDifferenceInfoHandle buildObject() {
+            return new BuilderDifferenceInfoHandle(this);
         }
 
         /**
@@ -726,7 +727,7 @@ public class BuilderModifyInfoHandle {
          * @Date: 2019/11/23 16:48
          * @Version: 1.0
          */
-        private String[] mergeCompareFields(BuilderModifyInfoHandle handle) {
+        private String[] mergeCompareFields(BuilderDifferenceInfoHandle handle) {
             // 已指定需要比较的字段并且没有需要忽略的字段
             if (ArrayUtils.isNotEmpty(handle.getCompareFields()) && ArrayUtils.isEmpty(handle.getIgnoreCompareFields())) {
                 return handle.getCompareFields();

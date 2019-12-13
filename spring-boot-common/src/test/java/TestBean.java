@@ -1,5 +1,5 @@
 import com.alibaba.fastjson.annotation.JSONField;
-import com.neo.util.modifyinfo.Property;
+import com.neo.util.diffinfo.Property;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

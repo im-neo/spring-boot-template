@@ -1,4 +1,4 @@
-package com.neo.util.modifyinfo;
+package com.neo.util.diffinfo;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

@@ -1,4 +1,4 @@
-package com.neo.util.modifyinfo;
+package com.neo.util.diffinfo;
 
 import com.alibaba.fastjson.util.TypeUtils;
 

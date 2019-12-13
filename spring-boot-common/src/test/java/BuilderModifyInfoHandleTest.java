@@ -2,8 +2,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.util.TypeUtils;
 import com.google.common.collect.ImmutableMap;
-import com.neo.util.modifyinfo.BuilderModifyInfoHandle;
-import com.neo.util.modifyinfo.DateTypeProcessHandle;
+import com.neo.util.diffinfo.BuilderDifferenceInfoHandle;
+import com.neo.util.diffinfo.DateTypeProcessHandle;
 
 import java.util.Map;
 
@@ -28,9 +28,9 @@ public class BuilderModifyInfoHandleTest {
         String[] compareFields = {"string", "integer", "date", "bigDecimal", "aBoolean"};
         String[] ignoreFields = {"string", "integer"};
 
-        JSONArray array = BuilderModifyInfoHandle.Builder(oldObject, newObject)
-                // .compareFields(compareFields)
-                // .ignoreCompareFields(ignoreFields)
+        JSONArray array = BuilderDifferenceInfoHandle.Builder(oldObject, newObject)
+                .compareFields(compareFields)
+                .ignoreCompareFields(ignoreFields)
                 .fieldTitleKey("标题")
                 .putFieldTitleMapping("string", "这是字符串")
                 .registerProcessHandle(new DateTypeProcessHandle())

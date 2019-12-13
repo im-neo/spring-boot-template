@@ -7,7 +7,7 @@ import com.neo.util.diffinfo.DateTypeProcessHandle;
 
 import java.util.Map;
 
-public class BuilderModifyInfoHandleTest {
+public class BuilderDifferenceInfoHandleTest {
 
 
     public static void main(String[] args) {

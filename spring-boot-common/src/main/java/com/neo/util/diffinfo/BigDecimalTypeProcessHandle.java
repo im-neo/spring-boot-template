@@ -12,6 +12,7 @@ import java.util.Objects;
  * @Date: 2019/11/24 17:40
  * @Version: 1.0
  */
+@InnerTypeProcessHandle
 public class BigDecimalTypeProcessHandle implements TypeProcessHandle<BigDecimal>{
     @Override
     public boolean isDifferent(Object o1, Object o2) {

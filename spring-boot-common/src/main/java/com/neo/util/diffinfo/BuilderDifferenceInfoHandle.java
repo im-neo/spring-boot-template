@@ -7,14 +7,13 @@ import com.google.common.base.MoreObjects;
 import com.neo.util.ArrayUtils;
 import com.neo.util.ReflectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.reflections.Reflections;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,68 +22,108 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 组装修改信息工具类
- * 
- * 处理器优先级：BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderDifferenceInfoHandle.Builder#registerProcessHandle() > 默认
+ * 组装对象属性不同值信息工具类
+ * <p>
+ * 处理器优先级：BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderDifferenceInfoHandle.Builder#registerProcessHandle() > 内置处理器 > 默认
  * 属性名称优先级：BuilderDifferenceInfoHandle.Builder#putFieldTitleMapping() > Property#nameAnnotationClass() > Property#name() > BuilderDifferenceInfoHandle.Builder#configGlobalNameAnnotation()
- * 
+ * <p>
  * 需依赖：
- *         <dependency>
- *             <groupId>com.google.guava</groupId>
- *             <artifactId>guava</artifactId>
- *             <version>28.0-jre</version>
- *         </dependency>
+ * <pre>
+ * <dependency>
+ *      <groupId>com.google.guava</groupId>
+ *      <artifactId>guava</artifactId>
+ *      <version>28.0-jre</version>
+ * </dependency>
  *
- *         <dependency>
- *             <groupId>com.alibaba</groupId>
- *             <artifactId>fastjson</artifactId>
- *             <version>1.2.62</version>
- *         </dependency>
- * 
+ * <dependency>
+ *      <groupId>com.alibaba</groupId>
+ *      <artifactId>fastjson</artifactId>
+ *      <version>1.2.62</version>
+ * </dependency>
+ *
+ * <dependency>
+ *     <groupId>org.reflections</groupId>
+ *     <artifactId>reflections</artifactId>
+ *     <version>0.9.11</version>
+ * </dependency>
+ * </pre>
+ *
  * @Author: Neo
  * @Date: 2019/11/22 22:49
  * @Version: 1.0
  */
 public class BuilderDifferenceInfoHandle {
 
-    private BuilderDifferenceInfoHandle(){}
-    
-    private static final String[] EMPTY_ARRAY = new String[0];
-    private static TypeProcessHandle DATE_TYPE_PROCESS_HANDLE = new DateTypeProcessHandle();
-    private static TypeProcessHandle BIG_DECIMAL_TYPE_PROCESS_HANDLE = new BigDecimalTypeProcessHandle();
-    private static TypeProcessHandle DEFAULT_TYPE_PROCESS_HANDLE = new DefaultTypeProcessHandle();
+    private BuilderDifferenceInfoHandle() {
+    }
+
+    public static final String[] EMPTY_ARRAY = new String[0];
+    public static TypeProcessHandle DEFAULT_TYPE_PROCESS_HANDLE = new DefaultTypeProcessHandle();
+
+    /**
+     * 内置处理器映射 ： 类型 - 处理器
+     */
+    public static Map<Class<?>, TypeProcessHandle> INNER_TYPE_PROCESS_HANDLE_MAP = new HashMap<>();
 
 
-    /** 修改前的对象 */
+    /**
+     * 修改前的对象
+     */
     private Object oldObject;
-    /** 修改后的对象 */
+    /**
+     * 修改后的对象
+     */
     private Object newObject;
-    /** 需要比较的字段 */
+    /**
+     * 需要比较的字段
+     */
     private String[] compareFields;
-    /** 比较时需要忽略的字段 */
+    /**
+     * 比较时需要忽略的字段
+     */
     private String[] ignoreCompareFields;
-    /** 映射 ： 类型 - 处理器 */
+    /**
+     * 映射 ： 类型 - 处理器
+     */
     private Map<Class<?>, TypeProcessHandle> typeProcessHandleMap;
-    /** 映射 ： 属性名 - 处理器 */
-    private Map<String , TypeProcessHandle> fieldNameProcessHandleMap;
+    /**
+     * 映射 ： 属性名 - 处理器
+     */
+    private Map<String, TypeProcessHandle> fieldNameProcessHandleMap;
 
-    /** 存储修改前值的 Key */
+    /**
+     * 存储修改前值的 Key
+     */
     private String oldValueKey;
-    /** 存储修改后值的 Key */
+    /**
+     * 存储修改后值的 Key
+     */
     private String newValueKey;
-    /** 存储属性名的 Key */
+    /**
+     * 存储属性名的 Key
+     */
     private String fieldNameKey;
-    /** 存储属性标题的 KEY */
+    /**
+     * 存储属性标题的 KEY
+     */
     private String fieldTitleKey;
-    /** 是否需要组装 null 值 */
+    /**
+     * 是否需要组装 null 值
+     */
     private boolean isBuilderNullValue;
 
-    /** 映射 ： 属性名 - 属性标题 */
+    /**
+     * 映射 ： 属性名 - 属性标题
+     */
     private Map<String, String> fieldTitleMapping;
-    
-    /** 全局名称标注注解类，单独使用无效，需配合 globalNameAnnotationClassField 一起使用 */
+
+    /**
+     * 全局名称标注注解类，单独使用无效，需配合 globalNameAnnotationClassField 一起使用
+     */
     private Class<? extends Annotation> globalNameAnnotationClass;
-    /** 全局名称标注注解类属性，单独使用无效，需配合 globalNameAnnotationClass 一起使用 */
+    /**
+     * 全局名称标注注解类属性，单独使用无效，需配合 globalNameAnnotationClass 一起使用
+     */
     private String globalNameAnnotationClassField;
 
     private BuilderDifferenceInfoHandle(Builder builder) {
@@ -102,6 +141,25 @@ public class BuilderDifferenceInfoHandle {
         setIgnoreCompareFields(builder.ignoreCompareFields);
         setGlobalNameAnnotationClass(builder.globalNameAnnotationClass);
         setGlobalNameAnnotationClassField(builder.globalNameAnnotationClassField);
+    }
+
+    static {
+        // 初始化内置处理器，仅扫描当前包路径下的类
+        Reflections reflections = new Reflections(BuilderDifferenceInfoHandle.class.getPackage().getName());
+        Set<Class<? extends TypeProcessHandle>> handles = reflections.getSubTypesOf(TypeProcessHandle.class);
+
+        for (Class<? extends TypeProcessHandle> handle : handles) {
+            if (handle.isAnnotationPresent(InnerTypeProcessHandle.class)) {
+                try {
+                    TypeProcessHandle typeProcessHandle = handle.newInstance();
+                    INNER_TYPE_PROCESS_HANDLE_MAP.put(typeProcessHandle.supportTypeKey(), typeProcessHandle);
+                } catch (InstantiationException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
 
@@ -122,7 +180,7 @@ public class BuilderDifferenceInfoHandle {
 
                 Object oldValue = ReflectUtils.getValueByFieldName(oldObject, field);
                 Object newValue = ReflectUtils.getValueByFieldName(newObject, field);
-                
+
                 if (!isDifferent(oldObject, newObject, field, newValue, oldValue)) {
                     continue;
                 }
@@ -179,6 +237,7 @@ public class BuilderDifferenceInfoHandle {
     /**
      * 得到类型处理器
      * 处理器优先级：BuilderDifferenceInfoHandle.Builder#putFieldNameProcessHandleMapping() > Property#typeProcessHandleUsing() > BuilderDifferenceInfoHandle.Builder#registerProcessHandle() > 默认
+     *
      * @Author: Neo
      * @Date: 2019/11/24 17:41
      * @Version: 1.0
@@ -221,14 +280,12 @@ public class BuilderDifferenceInfoHandle {
             }
         }
 
-
-        // 4.默认
-        if (BigDecimal.class.isAssignableFrom(targetType)) {
-            return BIG_DECIMAL_TYPE_PROCESS_HANDLE;
+        // 4.内置处理器
+        handle = INNER_TYPE_PROCESS_HANDLE_MAP.get(targetType);
+        if (!Objects.isNull(handle)) {
+            return handle;
         }
-        if (Date.class.isAssignableFrom(targetType)) {
-            return DATE_TYPE_PROCESS_HANDLE;
-        }
+        // 5.默认处理器
         return DEFAULT_TYPE_PROCESS_HANDLE;
     }
 
@@ -260,7 +317,7 @@ public class BuilderDifferenceInfoHandle {
 
         return field.getType();
     }
-    
+
     /**
      * 获取属性注解定义的处理器
      *
@@ -268,7 +325,7 @@ public class BuilderDifferenceInfoHandle {
      * @Date: 2019/11/25 10:08
      * @Version: 1.0
      */
-    private TypeProcessHandle getPropertyDefinitionProcessHandle(Object object,  String fieldName) throws IllegalAccessException, InstantiationException {
+    private TypeProcessHandle getPropertyDefinitionProcessHandle(Object object, String fieldName) throws IllegalAccessException, InstantiationException {
         if (Objects.isNull(object) || StringUtils.isBlank(fieldName) || Map.class.isAssignableFrom(object.getClass())) {
             return null;
         }
@@ -321,7 +378,7 @@ public class BuilderDifferenceInfoHandle {
             return null;
         }
 
-        
+
         if (field.isAnnotationPresent(Property.class)) {
             Property property = field.getAnnotation(Property.class);
             // 2.Property#nameAnnotationClass()
@@ -373,7 +430,7 @@ public class BuilderDifferenceInfoHandle {
         Object annotationFieldValue = getAnnotationFieldValue(nameAnnotation, property.nameAnnotationClassField());
         return TypeUtils.castToString(annotationFieldValue);
     }
-    
+
     /**
      * 获取代理注解的属性值
      *
@@ -381,7 +438,7 @@ public class BuilderDifferenceInfoHandle {
      * @Date: 2019/11/25 17:07
      * @Version: 1.0
      */
-    public Object getAnnotationFieldValue(Annotation annotation , String field) throws IllegalAccessException,NoSuchFieldException{
+    public Object getAnnotationFieldValue(Annotation annotation, String field) throws IllegalAccessException, NoSuchFieldException {
         //获取代理实例所持有的 InvocationHandler
         InvocationHandler invocationHandler = Proxy.getInvocationHandler(annotation);
 
@@ -531,14 +588,14 @@ public class BuilderDifferenceInfoHandle {
         this.globalNameAnnotationClassField = globalNameAnnotationClassField;
     }
 
-    public static Builder Builder(Object oldObject , Object newObject) {
+    public static Builder Builder(Object oldObject, Object newObject) {
         Builder builder = new Builder();
         builder.oldObject(oldObject);
         builder.newObject(newObject);
         return builder;
     }
 
-    public static Builder Builder(Object oldObject , Object newObject, String... compareFields) {
+    public static Builder Builder(Object oldObject, Object newObject, String... compareFields) {
         Builder builder = new Builder();
         builder.oldObject(oldObject);
         builder.newObject(newObject);
@@ -548,146 +605,175 @@ public class BuilderDifferenceInfoHandle {
 
 
     public static final class Builder {
-        /** 修改前的对象 */
+        /**
+         * 修改前的对象
+         */
         private Object oldObject;
-        /** 修改后的对象 */
+        /**
+         * 修改后的对象
+         */
         private Object newObject;
-        /** 需要比较的字段 */
+        /**
+         * 需要比较的字段
+         */
         private String[] compareFields;
-        /** 比较时需要忽略的字段 */
+        /**
+         * 比较时需要忽略的字段
+         */
         private String[] ignoreCompareFields;
-        /** 映射 ： 类型 - 处理器 */
+        /**
+         * 映射 ： 类型 - 处理器
+         */
         private Map<Class<?>, TypeProcessHandle> typeProcessHandleMap;
-        /** 映射 ： 属性名 - 处理器 */
-        private Map<String , TypeProcessHandle> fieldNameProcessHandleMap;
+        /**
+         * 映射 ： 属性名 - 处理器
+         */
+        private Map<String, TypeProcessHandle> fieldNameProcessHandleMap;
 
-        /** 存储修改前值的 Key */
+        /**
+         * 存储修改前值的 Key
+         */
         private String oldValueKey = "before";
-        /** 存储修改后值的 Key */
+        /**
+         * 存储修改后值的 Key
+         */
         private String newValueKey = "after";
-        /** 存储属性名的 Key */
+        /**
+         * 存储属性名的 Key
+         */
         private String fieldNameKey = "name";
-        /** 存储属性标题的 KEY */
+        /**
+         * 存储属性标题的 KEY
+         */
         private String fieldTitleKey = "title";
-        /** 是否需要组装 null 值 */
+        /**
+         * 是否需要组装 null 值
+         */
         private boolean isBuilderNullValue = true;
 
-        /** 映射 ： 属性名 - 属性标题 */
+        /**
+         * 映射 ： 属性名 - 属性标题
+         */
         private Map<String, String> fieldTitleMapping;
 
-        /** 全局名称标注注解类，单独使用无效，需配合 globalNameAnnotationClassField 一起使用 */
+        /**
+         * 全局名称标注注解类，单独使用无效，需配合 globalNameAnnotationClassField 一起使用
+         */
         private Class<? extends Annotation> globalNameAnnotationClass;
-        /** 全局名称标注注解类属性，单独使用无效，需配合 globalNameAnnotationClass 一起使用 */
+        /**
+         * 全局名称标注注解类属性，单独使用无效，需配合 globalNameAnnotationClass 一起使用
+         */
         private String globalNameAnnotationClassField;
 
         public Builder() {
         }
 
-        public Builder newObject(Object val) {
-            newObject = val;
+        public Builder newObject(Object newObject) {
+            this.newObject = newObject;
             return this;
         }
 
-        public Builder oldObject(Object val) {
-            oldObject = val;
+        public Builder oldObject(Object oldObject) {
+            this.oldObject = oldObject;
             return this;
         }
 
-        public Builder compareFields(String... val) {
-            compareFields = val;
+        public Builder compareFields(String... compareFields) {
+            this.compareFields = compareFields;
             return this;
         }
 
-        public Builder ignoreCompareFields(String... val) {
-            ignoreCompareFields = val;
+        public Builder ignoreCompareFields(String... typeProcessHandleMap) {
+            this.ignoreCompareFields = typeProcessHandleMap;
             return this;
         }
 
-        public Builder typeProcessHandleMap(Map<Class<?>, TypeProcessHandle> val) {
-            typeProcessHandleMap = val;
+        public Builder typeProcessHandleMap(Map<Class<?>, TypeProcessHandle> typeProcessHandleMap) {
+            this.typeProcessHandleMap = typeProcessHandleMap;
             return this;
         }
 
-        public Builder fieldNameProcessHandleMap(Map<String, TypeProcessHandle> val) {
-            fieldNameProcessHandleMap = val;
+        public Builder fieldNameProcessHandleMap(Map<String, TypeProcessHandle> fieldNameProcessHandleMap) {
+            this.fieldNameProcessHandleMap = fieldNameProcessHandleMap;
             return this;
         }
 
-        public Builder oldValueKey(String val) {
-            oldValueKey = val;
+        public Builder oldValueKey(String oldValueKey) {
+            this.oldValueKey = oldValueKey;
             return this;
         }
 
-        public Builder newValueKey(String val) {
-            newValueKey = val;
+        public Builder newValueKey(String newValueKey) {
+            this.newValueKey = newValueKey;
             return this;
         }
 
-        public Builder fieldNameKey(String val) {
-            fieldNameKey = val;
+        public Builder fieldNameKey(String fieldNameKey) {
+            this.fieldNameKey = fieldNameKey;
             return this;
         }
 
-        public Builder fieldTitleKey(String val) {
-            fieldTitleKey = val;
+        public Builder fieldTitleKey(String fieldTitleKey) {
+            this.fieldTitleKey = fieldTitleKey;
             return this;
         }
 
-        public Builder isBuilderNullValue(boolean val) {
-            isBuilderNullValue = val;
+        public Builder isBuilderNullValue(boolean isBuilderNullValue) {
+            this.isBuilderNullValue = isBuilderNullValue;
             return this;
         }
 
-        public Builder fieldTitleMapping(Map<String, String> val) {
-            fieldTitleMapping = val;
+        public Builder fieldTitleMapping(Map<String, String> fieldTitleMapping) {
+            this.fieldTitleMapping = fieldTitleMapping;
             return this;
         }
 
-        public Builder globalNameAnnotationClass(Class<? extends Annotation> val) {
-            globalNameAnnotationClass = val;
+        public Builder globalNameAnnotationClass(Class<? extends Annotation> globalNameAnnotationClass) {
+            this.globalNameAnnotationClass = globalNameAnnotationClass;
             return this;
         }
-        public Builder globalNameAnnotationClassField(String val) {
-            globalNameAnnotationClassField = val;
+
+        public Builder globalNameAnnotationClassField(String globalNameAnnotationClassField) {
+            this.globalNameAnnotationClassField = globalNameAnnotationClassField;
             return this;
         }
 
 
         public Builder registerProcessHandle(TypeProcessHandle handle) {
             if (!Objects.isNull(handle)) {
-                if (null == typeProcessHandleMap) {
-                    typeProcessHandleMap = new HashMap<>(16);
+                if (null == this.typeProcessHandleMap) {
+                    this.typeProcessHandleMap = new HashMap<>(16);
                 }
-                typeProcessHandleMap.put(handle.supportTypeKey(), handle);
+                this.typeProcessHandleMap.put(handle.supportTypeKey(), handle);
             }
             return this;
         }
 
         public Builder putFieldNameProcessHandleMapping(String field, TypeProcessHandle handle) {
             if (StringUtils.isNotBlank(field) && StringUtils.isNotBlank(field)) {
-                if (null == fieldNameProcessHandleMap) {
-                    fieldNameProcessHandleMap = new HashMap<>(16);
+                if (null == this.fieldNameProcessHandleMap) {
+                    this.fieldNameProcessHandleMap = new HashMap<>(16);
                 }
-                fieldNameProcessHandleMap.put(field, handle);
+                this.fieldNameProcessHandleMap.put(field, handle);
             }
             return this;
         }
-        
-        public Builder configGlobalNameAnnotation(Class<? extends Annotation> annotation , String field) {
+
+        public Builder configGlobalNameAnnotation(Class<? extends Annotation> annotation, String field) {
             if (Objects.isNull(annotation) || StringUtils.isBlank(field)) {
                 throw new RuntimeException("全局名称标注注解类和全局名称标注注解类属性都不可为空");
             }
-            globalNameAnnotationClass = annotation;
-            globalNameAnnotationClassField = field;
+            this.globalNameAnnotationClass = annotation;
+            this.globalNameAnnotationClassField = field;
             return this;
         }
 
         public Builder putFieldTitleMapping(String field, String title) {
             if (StringUtils.isNotBlank(field) && StringUtils.isNotBlank(title)) {
-                if (null == fieldTitleMapping) {
-                    fieldTitleMapping = new HashMap<>();
+                if (null == this.fieldTitleMapping) {
+                    this.fieldTitleMapping = new HashMap<>();
                 }
-                fieldTitleMapping.put(field, title);
+                this.fieldTitleMapping.put(field, title);
             }
             return this;
         }

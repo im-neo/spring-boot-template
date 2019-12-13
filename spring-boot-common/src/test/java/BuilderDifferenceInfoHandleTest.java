@@ -38,6 +38,18 @@ public class BuilderDifferenceInfoHandleTest {
                 .configGlobalNameAnnotation(JSONField.class, "name")
                 .isBuilderNullValue(true)
                 .buildInfo();
+        System.out.println(array.toJSONString());
+        
+        array = BuilderDifferenceInfoHandle.Builder(oldObject, newObject)
+                .compareFields(compareFields)
+                .ignoreCompareFields(ignoreFields)
+                .fieldTitleKey("标题")
+                .putFieldTitleMapping("string", "这是字符串")
+                .registerProcessHandle(new DateTypeProcessHandle())
+                .putFieldNameProcessHandleMapping("date", new DateTypeProcessHandle())
+                .configGlobalNameAnnotation(JSONField.class, "name")
+                .isBuilderNullValue(true)
+                .buildInfo();
 
         System.out.println(array.toJSONString());
     }

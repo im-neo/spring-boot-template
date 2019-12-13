@@ -115,13 +115,7 @@ public class ReflectUtils {
             return clazz.getDeclaredField(fieldName).getType();
         } catch (Exception e) {
             Class<?> sup = clazz.getSuperclass();
-            try {
-                return sup.getDeclaredField(fieldName).getType();
-            } catch (NoSuchFieldException e1) {
-                throw e1;
-            } catch (SecurityException e1) {
-                throw e1;
-            }
+            return sup.getDeclaredField(fieldName).getType();
         }
     }
 
@@ -192,7 +186,7 @@ public class ReflectUtils {
      * @return 范型参数的实际类型, 如果没有实现ParameterizedType接口，即不支持泛型，所以直接返回
      * <code>Object.class</code>
      */
-    public static Class<?> getSuperClassGenricType(Class<?> clazz, int index) {
+    public static Class<?> getSuperClassGenericType(Class<?> clazz, int index) {
         // 得到泛型父类
         Type genType = clazz.getGenericSuperclass();
         // 如果没有实现ParameterizedType接口，即不支持泛型，直接返回Object.class
@@ -218,8 +212,8 @@ public class ReflectUtils {
      * @return 泛型参数的实际类型, 如果没有实现ParameterizedType接口，即不支持泛型，所以直接返回
      * <code>Object.class</code>
      */
-    public static Class<?> getSuperClassGenricType(Class<?> clazz) {
-        return getSuperClassGenricType(clazz, 0);
+    public static Class<?> getSuperClassGenericType(Class<?> clazz) {
+        return getSuperClassGenericType(clazz, 0);
     }
 
     /**
@@ -232,15 +226,7 @@ public class ReflectUtils {
      */
     public static Class<?> getMethodGenericReturnType(Method method, int index) {
         Type returnType = method.getGenericReturnType();
-        if (returnType instanceof ParameterizedType) {
-            ParameterizedType type = (ParameterizedType) returnType;
-            Type[] typeArguments = type.getActualTypeArguments();
-            if (index >= typeArguments.length || index < 0) {
-                throw new RuntimeException("你输入的索引" + (index < 0 ? "不能小于0" : "超出了参数的总数"));
-            }
-            return (Class<?>) typeArguments[index];
-        }
-        return Object.class;
+        return getClass(index, returnType);
     }
 
     /**
@@ -264,7 +250,7 @@ public class ReflectUtils {
      */
     public static List<Class<?>> getMethodGenericParameterTypes(Method method,
                                                                 int index) {
-        List<Class<?>> results = new ArrayList<Class<?>>();
+        List<Class<?>> results = new ArrayList<>();
         Type[] genericParameterTypes = method.getGenericParameterTypes();
         if (index >= genericParameterTypes.length || index < 0) {
             throw new RuntimeException("你输入的索引"
@@ -305,6 +291,14 @@ public class ReflectUtils {
     public static Class<?> getFieldGenericType(Field field, int index) {
         Type genericFieldType = field.getGenericType();
 
+        return getClass(index, genericFieldType);
+    }
+
+    /**
+     * 获取参数类型
+     *
+     */
+    private static Class<?> getClass(int index, Type genericFieldType) {
         if (genericFieldType instanceof ParameterizedType) {
             ParameterizedType aType = (ParameterizedType) genericFieldType;
             Type[] fieldArgTypes = aType.getActualTypeArguments();

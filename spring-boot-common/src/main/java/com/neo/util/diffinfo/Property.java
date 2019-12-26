@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 
 /**
- * 组装修改信息属性注解
+ * 组装信息属性注解
  *
  * @Author: Neo
  * @Date: 2019/11/23 11:24

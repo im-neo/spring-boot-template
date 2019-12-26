@@ -13,6 +13,7 @@ import java.util.Objects;
  * @Date: 2019/11/24 17:40
  * @Version: 1.0
  */
+@InnerTypeProcessHandle
 public class DateTypeProcessHandle implements TypeProcessHandle<Date> {
 
     public static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

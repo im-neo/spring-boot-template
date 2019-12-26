@@ -1,10 +1,14 @@
 package queue;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 
+@Slf4j
 public class QueueTest {
 
     public static void main(String[] args) throws InterruptedException {
@@ -17,7 +21,7 @@ public class QueueTest {
         Consumer consumer2 = new Consumer(queue);
         Consumer consumer3 = new Consumer(queue);
         //线程池
-        ExecutorService service = Executors.newFixedThreadPool(1);
+        ExecutorService service = Executors.newFixedThreadPool(3);
         service.execute(producer1);
         service.execute(producer2);
         service.execute(producer3);
@@ -27,12 +31,20 @@ public class QueueTest {
         Thread.sleep(10 * 1000);  //执行生产者和消费者
         producer1.stop();
         producer2.stop();
-        producer3.stop();	//停止生产任务
+        producer3.stop();    //停止生产任务
         service.shutdown();
-        while (service.isTerminated()){
-            Thread.sleep(2);
+
+        ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) service;
+
+        while (true) {
+            int queueSize = threadPoolExecutor.getQueue().size();
+            int activeCount = threadPoolExecutor.getActiveCount();
+            long completedTaskCount = threadPoolExecutor.getCompletedTaskCount();
+            long taskCount = threadPoolExecutor.getTaskCount();
+
+            log.info("当前排队线程数：{}，当前活动线程数：{}，执行完成线程数：{}，总线程数：{}", queueSize, activeCount, completedTaskCount, taskCount);
+            Thread.sleep(1000 * 2);
         }
-        System.out.println("结束");
     }
 
 }

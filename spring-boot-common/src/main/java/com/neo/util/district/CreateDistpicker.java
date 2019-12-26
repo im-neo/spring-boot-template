@@ -1,10 +1,13 @@
-package com.neo.util;
+package com.neo.util.district;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.util.TypeUtils;
+import com.google.common.base.Joiner;
+import com.neo.util.ArrayUtils;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +25,20 @@ public class CreateDistpicker {
         this.data = this.data1 + this.data2;
     }
 
+
+    public static String buildStructure(String code, String... structure) {
+        if (StringUtils.isBlank(code) || ArrayUtils.isEmpty(structure)) {
+            return StringUtils.EMPTY;
+        }
+
+        // 江西_九江("360000");
+        String name = Joiner.on("_").join(structure);
+        return name + "(\"" + code + "\")";
+    }
+
     public static void main(String[] args) {
 
+        List<String> structureResult = new ArrayList<>(512);
         List<Province> result = new ArrayList<>(16);
         CreateDistpicker createDistpicker = new CreateDistpicker();
         JSONObject json = JSON.parseObject(createDistpicker.data);
@@ -31,25 +46,27 @@ public class CreateDistpicker {
 
         for (Map.Entry<String, Object> provinceEntry : provinces.entrySet()) {
             Province province = Province.builder().name(TypeUtils.castToString(provinceEntry.getValue())).code(provinceEntry.getKey()).build();
-            System.out.println(province);
+            structureResult.add(buildStructure(province.getCode(), province.getName()));
             JSONObject cityData = json.getJSONObject(province.getCode());
 
             if (null != cityData) {
                 List<City> cities = new ArrayList<>(16);
                 for (Map.Entry<String, Object> cityEntry : cityData.entrySet()) {
                     City city = City.builder().name(TypeUtils.castToString(cityEntry.getValue())).code(cityEntry.getKey()).build();
-                    System.out.println(city);
+                    structureResult.add(buildStructure(city.getCode(), province.getName(), city.getName()));
+
                     JSONObject districtData = json.getJSONObject(city.getCode());
 
-                    if(null != districtData){
+                    if (null != districtData) {
                         List<District> districts = new ArrayList<>(16);
                         for (Map.Entry<String, Object> districtEntry : districtData.entrySet()) {
                             District district = District.builder().name(TypeUtils.castToString(districtEntry.getValue())).code(districtEntry.getKey()).build();
+                            structureResult.add(buildStructure(district.getCode(), province.getName(), city.getName(), district.getName()));
                             districts.add(district);
                         }
                         city.setDistricts(districts);
                     }
-                    
+
                     cities.add(city);
                 }
                 province.setCities(cities);
@@ -58,10 +75,22 @@ public class CreateDistpicker {
         }
 
 
-        System.out.println(JSON.toJSONString(result));
+        structureResult.sort((o1, o2) -> {
+            int code1 = TypeUtils.castToInt(StringUtils.substring(o1, StringUtils.indexOf(o1, "\"") + 1, StringUtils.lastIndexOf(o1, "\"")));
+            int code2 = TypeUtils.castToInt(StringUtils.substring(o2, StringUtils.indexOf(o2, "\"") + 1, StringUtils.lastIndexOf(o2, "\"")));
+
+            return code1 - code2;
+        });
+
+        for (String s : structureResult) {
+            System.out.println(s +",");
+        }
+
+        System.out.println(";");
+
+
     }
 }
-
 
 
 @Data

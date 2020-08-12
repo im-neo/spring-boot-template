@@ -30,7 +30,7 @@ public class TestApp {
     @Test
     public void test02(){
         Stopwatch stopwatch = Stopwatch.createStarted();
-        String plaintext = passwordService.forceCrackPassword("e8233f5c2d747116b6395258ce7762f4");
+        String plaintext = passwordService.forceCrackPassword("1f47e5554774c257cb700671782e0bbe");
         
         System.out.println("字典破解："+plaintext+"，耗时："+stopwatch.elapsed());
     }

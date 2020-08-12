@@ -34,7 +34,7 @@ public class BuilderDifferenceInfoHandleTest {
                 .fieldTitleKey("标题")
                 .putFieldTitleMapping("string", "这是字符串")
                 .registerProcessHandle(new DateTypeProcessHandle())
-                .putFieldNameProcessHandleMapping("date", new DateTypeProcessHandle())
+                .putFieldNameProcessHandleMapping("idcardType", new DateTypeProcessHandle())
                 .configGlobalNameAnnotation(JSONField.class, "name")
                 .isBuilderNullValue(true)
                 .buildInfo();

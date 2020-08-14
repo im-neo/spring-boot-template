@@ -1,4 +1,4 @@
-package neo.demo2;
+package neo.demo03;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -6,7 +6,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.core.ExchangeTypes;
 
 import java.nio.charset.StandardCharsets;
@@ -14,12 +13,13 @@ import java.nio.charset.StandardCharsets;
 /**
  * RabbitMQ 入门程序消费者
  */
-public class ConsumerSms {
+public class ConsumerEmail {
 
-    public static final String QUEUE_INFORM_SMS = "queue_inform_sms";
-    public static final String EXCHANGE_FANOUT_INFORM = "exchange_fanout_inform";
-
-
+    public static final String QUEUE_INFORM_EMAIL = "queue_inform_email";
+    public static final String EXCHANGE_ROUTING_INFORM = "exchange_routing_inform";
+    public static final String ROUTING_KEY_EMAIL = "routing_key_email";
+    
+    
     public static void main(String[] args) {
         // 1.和MQ建立连接
         ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -36,11 +36,11 @@ public class ConsumerSms {
             // 创建会话通道，生产者和MQ服务的所有通信都通过 channel
             Channel channel = connection.createChannel();
 
-            channel.queueDeclare(QUEUE_INFORM_SMS, true, false, false, null);
+            channel.queueDeclare(QUEUE_INFORM_EMAIL, true, false, false, null);
 
-            channel.exchangeDeclare(EXCHANGE_FANOUT_INFORM, ExchangeTypes.FANOUT);
-
-            channel.queueBind(QUEUE_INFORM_SMS, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
+            channel.exchangeDeclare(EXCHANGE_ROUTING_INFORM, ExchangeTypes.DIRECT);
+            
+            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_ROUTING_INFORM, ROUTING_KEY_EMAIL);
 
             // 实现消费方法
             DefaultConsumer defaultConsumer = new DefaultConsumer(channel) {
@@ -72,8 +72,8 @@ public class ConsumerSms {
              * autoAck - 是否自动回复，但设置为 true ,消费者接收到消息后要告诉MQ消息已接收,否则自动回复，次设置可以保证消息不丢失
              * callback - 消费方法，消费者接收到消息，需要执行的方法
              */
-            channel.basicConsume(QUEUE_INFORM_SMS, true, defaultConsumer);
-            while (true) {
+            channel.basicConsume(QUEUE_INFORM_EMAIL , true ,defaultConsumer);
+            while (true){
                 Thread.sleep(500);
             }
         } catch (Exception e) {

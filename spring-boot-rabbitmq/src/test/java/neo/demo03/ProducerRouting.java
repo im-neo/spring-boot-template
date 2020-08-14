@@ -1,21 +1,21 @@
-package neo.demo2;
+package neo.demo03;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.core.ExchangeTypes;
 
 /**
  * RabbitMQ 入门程序生产者
- * publish / subscribe 模式
  */
-public class ProducerFanout {
+public class ProducerRouting {
 
 
     public static final String QUEUE_INFORM_EMAIL = "queue_inform_email";
     public static final String QUEUE_INFORM_SMS = "queue_inform_sms";
-    public static final String EXCHANGE_FANOUT_INFORM = "exchange_fanout_inform";
+    public static final String EXCHANGE_ROUTING_INFORM = "exchange_routing_inform";
+    public static final String ROUTING_KEY_EMAIL = "routing_key_email";
+    public static final String ROUTING_KEY_SMS = "routing_key_sms";
 
 
     public static void main(String[] args) {
@@ -55,11 +55,15 @@ public class ProducerFanout {
              *          HEADERS     - 
              *          SYSTEM      - 
              */
-            channel.exchangeDeclare(EXCHANGE_FANOUT_INFORM, ExchangeTypes.FANOUT);
-            
-            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
-            channel.queueBind(QUEUE_INFORM_SMS, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
-            
+            channel.exchangeDeclare(EXCHANGE_ROUTING_INFORM, ExchangeTypes.DIRECT);
+
+
+            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_ROUTING_INFORM, ROUTING_KEY_EMAIL);
+            channel.queueBind(QUEUE_INFORM_SMS, EXCHANGE_ROUTING_INFORM, ROUTING_KEY_SMS);
+            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_ROUTING_INFORM, "inform");
+            channel.queueBind(QUEUE_INFORM_SMS, EXCHANGE_ROUTING_INFORM, "inform");
+
+
             /**
              * 发送消息
              * String exchange, String routingKey, boolean mandatory, BasicProperties props, byte[] body
@@ -69,8 +73,8 @@ public class ProducerFanout {
              * body - 消息内容
              */
             for (int i = 0; i < 10; i++) {
-                String message = "hello , i'm test" + i;
-                channel.basicPublish(EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY, null, message.getBytes());
+                String message = "send inform message to user-" + i;
+                channel.basicPublish(EXCHANGE_ROUTING_INFORM, "inform", null, message.getBytes());
                 System.out.println("send to mq : " + message);
             }
         } catch (Exception e) {

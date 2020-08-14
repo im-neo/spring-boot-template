@@ -1,4 +1,4 @@
-package neo.demo2;
+package neo.demo02;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -14,9 +14,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * RabbitMQ 入门程序消费者
  */
-public class ConsumerEmail {
+public class ConsumerSms {
 
-    public static final String QUEUE_INFORM_EMAIL = "queue_inform_email";
+    public static final String QUEUE_INFORM_SMS = "queue_inform_sms";
     public static final String EXCHANGE_FANOUT_INFORM = "exchange_fanout_inform";
 
 
@@ -36,11 +36,11 @@ public class ConsumerEmail {
             // 创建会话通道，生产者和MQ服务的所有通信都通过 channel
             Channel channel = connection.createChannel();
 
-            channel.queueDeclare(QUEUE_INFORM_EMAIL, true, false, false, null);
+            channel.queueDeclare(QUEUE_INFORM_SMS, true, false, false, null);
 
             channel.exchangeDeclare(EXCHANGE_FANOUT_INFORM, ExchangeTypes.FANOUT);
-            
-            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
+
+            channel.queueBind(QUEUE_INFORM_SMS, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
 
             // 实现消费方法
             DefaultConsumer defaultConsumer = new DefaultConsumer(channel) {
@@ -72,8 +72,8 @@ public class ConsumerEmail {
              * autoAck - 是否自动回复，但设置为 true ,消费者接收到消息后要告诉MQ消息已接收,否则自动回复，次设置可以保证消息不丢失
              * callback - 消费方法，消费者接收到消息，需要执行的方法
              */
-            channel.basicConsume(QUEUE_INFORM_EMAIL , true ,defaultConsumer);
-            while (true){
+            channel.basicConsume(QUEUE_INFORM_SMS, true, defaultConsumer);
+            while (true) {
                 Thread.sleep(500);
             }
         } catch (Exception e) {

@@ -1,4 +1,4 @@
-package neo.demo4;
+package neo.demo04;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;

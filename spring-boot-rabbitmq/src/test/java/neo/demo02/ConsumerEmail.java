@@ -1,4 +1,4 @@
-package neo.demo4;
+package neo.demo02;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -6,6 +6,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.core.ExchangeTypes;
 
 import java.nio.charset.StandardCharsets;
@@ -16,10 +17,9 @@ import java.nio.charset.StandardCharsets;
 public class ConsumerEmail {
 
     public static final String QUEUE_INFORM_EMAIL = "queue_inform_email";
-    public static final String EXCHANGE_TOPICS_INFORM = "exchange_topic_inform";
-    public static final String ROUTING_KEY_EMAIL = "inform.#.email.#";
-    
-    
+    public static final String EXCHANGE_FANOUT_INFORM = "exchange_fanout_inform";
+
+
     public static void main(String[] args) {
         // 1.和MQ建立连接
         ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -38,9 +38,9 @@ public class ConsumerEmail {
 
             channel.queueDeclare(QUEUE_INFORM_EMAIL, true, false, false, null);
 
-            channel.exchangeDeclare(EXCHANGE_TOPICS_INFORM, ExchangeTypes.TOPIC);
+            channel.exchangeDeclare(EXCHANGE_FANOUT_INFORM, ExchangeTypes.FANOUT);
             
-            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_TOPICS_INFORM, ROUTING_KEY_EMAIL);
+            channel.queueBind(QUEUE_INFORM_EMAIL, EXCHANGE_FANOUT_INFORM, StringUtils.EMPTY);
 
             // 实现消费方法
             DefaultConsumer defaultConsumer = new DefaultConsumer(channel) {
